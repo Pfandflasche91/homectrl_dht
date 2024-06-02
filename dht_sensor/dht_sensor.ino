@@ -15,8 +15,8 @@ const char* entpoint_humidity = "http://192.168.2.231:3000/humidity";
 // Digital pin connected to the DHT sensor
 #define DHTPIN 2 
 // Uncomment the type of sensor in use:
-#define DHTTYPE    DHT11     // DHT 11
-//#define DHTTYPE    DHT22     // DHT 22 (AM2302)
+//#define DHTTYPE    DHT11     // DHT 11
+#define DHTTYPE    DHT22     // DHT 22 (AM2302)
 //#define DHTTYPE    DHT21     // DHT 21 (AM2301)
 DHT dht(DHTPIN, DHTTYPE);
 
@@ -74,7 +74,7 @@ String structToJson(struct_message data) {
 //Create a struct_message called myData and other start values
   struct_message myData;
   unsigned long previousMillis = 0;   // Stores last time temperature was published
-  const long interval = 10000;        // Interval at which to publish sensor readings
+  const long interval = 60000*5  ;        // Interval at which to publish sensor readings
   unsigned int readingId = 0;
   
   WiFiClient wifiClient;
