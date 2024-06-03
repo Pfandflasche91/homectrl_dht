@@ -75,10 +75,11 @@ String structToJson(struct_message data) {
   struct_message myData;
   unsigned long previousMillis = 0;   // Stores last time temperature was published
   const long interval = 60000*5  ;        // Interval at which to publish sensor readings
+  //const long interval = 30000  ; 
   unsigned int readingId = 0;
   
   WiFiClient wifiClient;
-  HTTPClient http;
+ 
  
   
 void setup() {
@@ -114,6 +115,7 @@ void loop() {
     myData.sensornr = BOARD_ID;  
     //Send 
     if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
       http.begin(wifiClient,entpoint_temperatur);
         http.addHeader("Accept", "*/*"); // Header setzen
       http.addHeader("Content-Type", "application/json"); // Header setzen
@@ -133,21 +135,22 @@ void loop() {
         Serial.print("Error on HTTP request: ");
         Serial.println(httpResponseCode);
       }
+      http.end();
 
       delay(2500);
-
-      http.begin(wifiClient,entpoint_humidity);
-        http.addHeader("Accept", "*/*"); // Header setzen
-      http.addHeader("Content-Type", "application/json"); // Header setzen
+      HTTPClient http_h;
+      http_h.begin(wifiClient,entpoint_humidity);
+        http_h.addHeader("Accept", "*/*"); // Header setzen
+      http_h.addHeader("Content-Type", "application/json"); // Header setzen
 
       // JSON-Daten erstellen
       JSONVar jsonDoc_hum;
       jsonDoc_hum["value"] = readDHTHumidity(); // Den Wert setzen
       String jsonPayload_hum = JSON.stringify(jsonDoc_hum);
 
-      httpResponseCode = http.POST(jsonPayload_hum);  
+      httpResponseCode = http_h.POST(jsonPayload_hum);  
       if (httpResponseCode > 0) {
-        String payload = http.getString();
+        String payload = http_h.getString();
         Serial.println("Humidity");
         Serial.println(httpResponseCode);
         Serial.println(payload);
@@ -155,6 +158,7 @@ void loop() {
         Serial.print("Error on HTTP request: ");
         Serial.println(httpResponseCode);
       }
+      http_h.end();
     }
     //Serial.print(structToJson(myData));
     //sendTemperature(http);
