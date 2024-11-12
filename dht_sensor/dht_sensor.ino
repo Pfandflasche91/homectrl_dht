@@ -3,13 +3,11 @@
 #include <DHT.h>
 #include <Arduino_JSON.h>
 
-
 //network config
 const char* ssid = "maxworld";
 const char* password = "01232605";
 //API URL
-const char* entpoint_temperatur = "http://192.168.2.231:3000/temperature";
-const char* entpoint_humidity = "http://192.168.2.231:3000/humidity";
+const char* entpoint_hygrometer = "http://192.168.2.231:3000/hygrometer";
 //Device ID
 #define BOARD_ID 2
 // Digital pin connected to the DHT sensor
@@ -18,16 +16,13 @@ const char* entpoint_humidity = "http://192.168.2.231:3000/humidity";
 //#define DHTTYPE    DHT11     // DHT 11
 #define DHTTYPE    DHT22     // DHT 22 (AM2302)
 //#define DHTTYPE    DHT21     // DHT 21 (AM2301)
-DHT dht(DHTPIN, DHTTYPE);
 
-// struct for data
-typedef struct struct_message {
-    float temp;
-    float hum;
-    int readingId;
-    char* sensorlocation;
-    int sensornr;
-} struct_message;
+DHT dht(DHTPIN, DHTTYPE);
+//Create a struct_message called myData and other start value
+  unsigned long previousMillis = 0;   // Stores last time temperature was published
+  const long interval = 60000*10  ;        // Interval at which to publish sensor readings
+  WiFiClient wifiClient;
+
 // Function to read Temperature
 float readDHTTemperature() {
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
@@ -41,7 +36,7 @@ float readDHTTemperature() {
     return 0;
   }
   else {
-    Serial.println(t);
+    //Serial.println(t);
     return t;
   }
 }
@@ -54,34 +49,41 @@ float readDHTHumidity() {
     return 0;
   }
   else {
-    Serial.println(h);
+    //Serial.println(h);
     return h;
   }
 }
-// Function to convert struct to JSON string
-String structToJson(struct_message data) {
-  JSONVar jsonDoc(200);
-  jsonDoc["temp"] = data.temp;
-  jsonDoc["hum"] = data.hum;
-  jsonDoc["readingId"] = data.readingId;
-  jsonDoc["sensornr"] = data.sensornr;
-  jsonDoc["sensorlocation"] = data.sensorlocation;
-  String jsonString = JSON.stringify(jsonDoc);
-  return jsonString;
-}
+
+void uploadData(){
+  if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin(wifiClient,entpoint_hygrometer);
+        http.addHeader("Accept", "*/*"); // Header setzen
+      http.addHeader("Content-Type", "application/json"); // Header setzen
+
+      // JSON-Daten erstellen
+      JSONVar jsonDoc;
+      jsonDoc["Temperature"] = readDHTTemperature(); // Den Wert setzen
+      jsonDoc["Humidity"] = readDHTHumidity();
+      jsonDoc["Sensornr"] = BOARD_ID;
+      String jsonPayload = JSON.stringify(jsonDoc);
+
+      int httpResponseCode = http.POST(jsonPayload);  
+      if (httpResponseCode > 0) {
+        String payload = http.getString();
+        Serial.println("Hygrometer");
+        Serial.println("Response:");
+        Serial.println(payload);
+        } else {
+        Serial.print("Error on HTTP request: ");
+        Serial.println(httpResponseCode);
+      }
+      http.end();
+    }
+  }
 
 
-//Create a struct_message called myData and other start values
-  struct_message myData;
-  unsigned long previousMillis = 0;   // Stores last time temperature was published
-  const long interval = 60000*5  ;        // Interval at which to publish sensor readings
-  //const long interval = 30000  ; 
-  unsigned int readingId = 0;
-  
-  WiFiClient wifiClient;
  
- 
-  
 void setup() {
   digitalWrite(LED_BUILTIN, HIGH); 
   Serial.begin(115200);
@@ -100,6 +102,9 @@ void setup() {
   delay(2500);
   digitalWrite(LED_BUILTIN, HIGH); 
   Serial.println("\nWiFi connected");
+
+   uploadData();
+   ESP.deepSleep(600e6);
 }
 
 void loop() {
@@ -107,60 +112,9 @@ void loop() {
   if (currentMillis - previousMillis >= interval) {
     // Save the last time a new reading was published
     previousMillis = currentMillis;
-    //Set values to send
-    myData.temp = readDHTTemperature();
-    myData.hum = readDHTHumidity();
-    myData.readingId = readingId++;
-    myData.sensorlocation = "Keller"; //todo create define
-    myData.sensornr = BOARD_ID;  
-    //Send 
-    if (WiFi.status() == WL_CONNECTED) {
-      HTTPClient http;
-      http.begin(wifiClient,entpoint_temperatur);
-        http.addHeader("Accept", "*/*"); // Header setzen
-      http.addHeader("Content-Type", "application/json"); // Header setzen
-
-      // JSON-Daten erstellen
-      JSONVar jsonDoc;
-      jsonDoc["value"] = readDHTTemperature(); // Den Wert setzen
-      String jsonPayload = JSON.stringify(jsonDoc);
-
-      int httpResponseCode = http.POST(jsonPayload);  
-      if (httpResponseCode > 0) {
-        String payload = http.getString();
-        Serial.println("Temperature");
-        Serial.println(httpResponseCode);
-        Serial.println(payload);
-        } else {
-        Serial.print("Error on HTTP request: ");
-        Serial.println(httpResponseCode);
-      }
-      http.end();
-
-      delay(2500);
-      HTTPClient http_h;
-      http_h.begin(wifiClient,entpoint_humidity);
-        http_h.addHeader("Accept", "*/*"); // Header setzen
-      http_h.addHeader("Content-Type", "application/json"); // Header setzen
-
-      // JSON-Daten erstellen
-      JSONVar jsonDoc_hum;
-      jsonDoc_hum["value"] = readDHTHumidity(); // Den Wert setzen
-      String jsonPayload_hum = JSON.stringify(jsonDoc_hum);
-
-      httpResponseCode = http_h.POST(jsonPayload_hum);  
-      if (httpResponseCode > 0) {
-        String payload = http_h.getString();
-        Serial.println("Humidity");
-        Serial.println(httpResponseCode);
-        Serial.println(payload);
-        } else {
-        Serial.print("Error on HTTP request: ");
-        Serial.println(httpResponseCode);
-      }
-      http_h.end();
-    }
-    //Serial.print(structToJson(myData));
-    //sendTemperature(http);
   }
+
+
+
+
 }
